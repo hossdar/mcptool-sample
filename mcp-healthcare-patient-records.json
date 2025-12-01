@@ -1,0 +1,77 @@
+{
+  "name": "healthcare-patient-records",
+  "version": "3.0.0",
+  "description": "HIPAA-compliant patient record management system with audit trails",
+
+  "authentication": {
+    "type": "oauth2",
+    "flow": "authorization_code",
+    "scopes": [
+      "patient:read",
+      "patient:write",
+      "medical_records:read",
+      "billing:read"
+    ],
+    "token_expiry_seconds": 1800,
+    "refresh_token_support": true,
+    "mtls_support": true,
+    "tls_version": "1.3"
+  },
+
+  "tools": [
+    {
+      "name": "get_patient_record",
+      "description": "Retrieve patient medical record (requires patient:read scope and consent)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "patient_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9-]{36}$",
+            "description": "Patient UUID (HIPAA: PHI)"
+          },
+          "include_pii": {
+            "type": "boolean",
+            "default": false,
+            "description": "Include personally identifiable information"
+          }
+        },
+        "required": ["patient_id"]
+      }
+    }
+  ],
+
+  "compliance": {
+    "frameworks": ["hipaa", "soc2_type2", "gdpr"],
+    "hipaa_details": {
+      "phi_encryption": "aes256",
+      "phi_encryption_key_rotation_days": 30,
+      "access_logs": true,
+      "access_log_retention_days": 2555,
+      "breach_notification_required": true,
+      "breach_notification_hours": 24,
+      "business_associate_agreement": true,
+      "minimum_necessary": true
+    },
+    "audit_logging": {
+      "enabled": true,
+      "log_all_access": true,
+      "log_retention_days": 2555,
+      "includes": [
+        "user_id",
+        "accessed_patient_id",
+        "timestamp",
+        "action",
+        "result",
+        "ip_address"
+      ],
+      "excludes": ["password", "encryption_key"]
+    },
+    "consent_management": {
+      "explicit_consent_required": true,
+      "consent_revocation_possible": true,
+      "consent_storage": "encrypted_database",
+      "audit_consent_changes": true
+    }
+  }
+}
