@@ -1,0 +1,239 @@
+{
+  "name": "github-integration",
+  "version": "2.1.0",
+  "description": "GitHub API integration for repository management, issue tracking, and collaboration",
+
+  "authentication": {
+    "type": "oauth2",
+    "flow": "authorization_code",
+    "token_endpoint": "https://github.com/login/oauth/access_token",
+    "authorize_endpoint": "https://github.com/login/oauth/authorize",
+    "scopes": [
+      "repo:read",
+      "repo:write",
+      "repo:admin",
+      "user:email",
+      "user:read"
+    ],
+    "token_expiry_seconds": 3600,
+    "refresh_token_support": false,
+    "scope_minimization": true,
+    "resource_indicators_rfc8707": true,
+    "tls_version": "1.3",
+    "mtls_support": true
+  },
+
+  "tools": [
+    {
+      "name": "list_repositories",
+      "description": "List repositories accessible with current authentication scope. Paginated.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "per_page": {
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 100,
+            "default": 30
+          },
+          "sort": {
+            "type": "string",
+            "enum": ["created", "updated", "pushed", "full_name"],
+            "default": "updated"
+          },
+          "direction": {
+            "type": "string",
+            "enum": ["asc", "desc"],
+            "default": "desc"
+          }
+        }
+      }
+    },
+    {
+      "name": "get_repository",
+      "description": "Get detailed information about a specific repository",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,39}$",
+            "description": "Repository owner username"
+          },
+          "repo": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._-]{1,255}$",
+            "description": "Repository name"
+          }
+        },
+        "required": ["owner", "repo"]
+      }
+    },
+    {
+      "name": "create_issue",
+      "description": "Create a new issue in a repository",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,39}$"
+          },
+          "repo": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._-]{1,255}$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "body": {
+            "type": "string",
+            "maxLength": 65536
+          },
+          "labels": {
+            "type": "array",
+            "items": { "type": "string" },
+            "maxItems": 10
+          }
+        },
+        "required": ["owner", "repo", "title"]
+      }
+    },
+    {
+      "name": "list_issues",
+      "description": "List issues in a repository with pagination and filtering",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "owner": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]{1,39}$"
+          },
+          "repo": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9._-]{1,255}$"
+          },
+          "state": {
+            "type": "string",
+            "enum": ["open", "closed", "all"],
+            "default": "open"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "per_page": {
+            "type": "integer",
+            "minimum": 10,
+            "maximum": 100,
+            "default": 30
+          }
+        },
+        "required": ["owner", "repo"]
+      }
+    }
+  ],
+
+  "rateLimit": {
+    "requests_per_minute": 60,
+    "requests_per_hour": 5000,
+    "concurrent_calls": 10,
+    "backoff_strategy": "exponential",
+    "retry_after_header": true,
+    "rate_limit_reset_header": "X-RateLimit-Reset"
+  },
+
+  "errorHandling": {
+    "supported_errors": [
+      {
+        "code": "RATE_LIMIT_EXCEEDED",
+        "http_status": 403,
+        "message": "API rate limit exceeded",
+        "retry_after_ms": 60000,
+        "recoverable": true
+      },
+      {
+        "code": "AUTHENTICATION_FAILED",
+        "http_status": 401,
+        "message": "Token expired or invalid",
+        "action": "request_new_token",
+        "recoverable": true
+      },
+      {
+        "code": "REPOSITORY_NOT_FOUND",
+        "http_status": 404,
+        "message": "Repository not found or access denied",
+        "recoverable": false
+      },
+      {
+        "code": "VALIDATION_FAILED",
+        "http_status": 422,
+        "message": "Request validation failed",
+        "recoverable": false
+      },
+      {
+        "code": "SERVER_ERROR",
+        "http_status": 500,
+        "message": "GitHub API server error",
+        "retry_after_ms": 30000,
+        "recoverable": true
+      }
+    ]
+  },
+
+  "monitoring": {
+    "audit_logging": true,
+    "log_retention_days": 365,
+    "structured_logging": true,
+    "pii_filtering": true,
+    "metrics": [
+      "request_latency_ms",
+      "error_rate_percent",
+      "rate_limit_used_percent",
+      "authentication_failures"
+    ]
+  },
+
+  "performance": {
+    "timeout_seconds": 30,
+    "caching": {
+      "strategy": "etag",
+      "ttl_seconds": 300,
+      "cache_key_includes": ["owner", "repo", "page"]
+    },
+    "pagination": {
+      "default_page_size": 30,
+      "max_page_size": 100,
+      "cursor_based": false
+    },
+    "streaming": {
+      "supported": true,
+      "mechanism": "sse"
+    }
+  },
+
+  "compliance": {
+    "frameworks": ["gdpr", "soc2_type2"],
+    "data_minimization": true,
+    "retention_policy_days": 90,
+    "retention_policy_details": "User data retained 90 days after last access",
+    "encryption": {
+      "in_transit": "tls1.3",
+      "at_rest": "aes256"
+    },
+    "pii_handling": {
+      "collects_pii": true,
+      "pii_types": ["email", "username", "repository_names"],
+      "purpose": "GitHub integration",
+      "user_consent": true
+    }
+  }
+}
