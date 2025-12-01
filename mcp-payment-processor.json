@@ -1,0 +1,106 @@
+{
+  "name": "payment-processor",
+  "version": "4.2.0",
+  "description": "PCI-DSS compliant payment processing with tokenization and encryption",
+
+  "authentication": {
+    "type": "oauth2",
+    "flow": "client_credentials",
+    "scopes": [
+      "payment:process",
+      "payment:refund",
+      "payment:report"
+    ],
+    "token_expiry_seconds": 900,
+    "refresh_token_support": true,
+    "mtls_support": true,
+    "tls_version": "1.3",
+    "certificate_pinning": true
+  },
+
+  "tools": [
+    {
+      "name": "process_payment",
+      "description": "Process payment using tokenized card (never transmit raw card data)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "pattern": "^tok_[a-zA-Z0-9]{24}$",
+            "description": "Card token (not card number)"
+          },
+          "amount_cents": {
+            "type": "integer",
+            "minimum": 50,
+            "maximum": 999999999
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": ["token", "amount_cents", "currency", "idempotency_key"]
+      }
+    }
+  ],
+
+  "compliance": {
+    "frameworks": ["pci_dss", "soc2_type2"],
+    "pci_dss_details": {
+      "card_data_storage": "never_stored",
+      "card_data_transmission": "encrypted_only",
+      "tokenization": "required",
+      "encryption": "aes256",
+      "key_rotation_days": 30,
+      "firewall": true,
+      "intrusion_detection": true,
+      "vulnerability_scanning_frequency_days": 90,
+      "penetration_testing_frequency_months": 12,
+      "pci_audit_frequency_months": 12
+    },
+    "audit_logging": {
+      "enabled": true,
+      "log_all_transactions": true,
+      "retention_days": 2555,
+      "includes": [
+        "transaction_id",
+        "timestamp",
+        "amount",
+        "token_last4",
+        "merchant_id",
+        "result"
+      ],
+      "excludes": ["card_number", "cvv", "encryption_key", "plaintext_token"]
+    }
+  },
+
+  "errorHandling": {
+    "supported_errors": [
+      {
+        "code": "CARD_DECLINED",
+        "http_status": 402,
+        "message": "Card was declined by issuer",
+        "retry_after_ms": 0,
+        "recoverable": false,
+        "user_message": "Payment declined. Please use a different card."
+      },
+      {
+        "code": "DUPLICATE_TRANSACTION",
+        "http_status": 409,
+        "message": "Duplicate transaction detected (idempotency check)",
+        "recoverable": false
+      },
+      {
+        "code": "INVALID_TOKEN",
+        "http_status": 400,
+        "message": "Card token invalid or expired",
+        "recoverable": false
+      }
+    ]
+  }
+}
