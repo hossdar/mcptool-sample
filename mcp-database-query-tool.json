@@ -1,0 +1,68 @@
+{
+  "name": "database-query-tool",
+  "version": "0.1.0",
+  "description": "Execute arbitrary SQL queries against PostgreSQL database",
+
+  "authentication": {
+    "type": "api_key",
+    "header": "X-API-Key",
+    "note": "Store in .env file",
+    "example_key": "sk-1234567890abcdef"
+  },
+
+  "tools": [
+    {
+      "name": "execute_query",
+      "description": "Execute raw SQL query against database. WARNING: No input sanitization!",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "sql": {
+            "type": "string",
+            "description": "Raw SQL query (any SQL allowed, no restrictions)"
+          },
+          "params": {
+            "type": "array",
+            "description": "Optional parameters (not used)"
+          }
+        },
+        "required": ["sql"]
+      }
+    },
+    {
+      "name": "list_tables",
+      "description": "List all database tables",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "name": "drop_table",
+      "description": "Drop a table from the database",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "table_name": {
+            "type": "string",
+            "description": "Table to drop"
+          }
+        },
+        "required": ["table_name"]
+      }
+    }
+  ],
+
+  "errorHandling": {
+    "return_full_errors": true,
+    "include_stack_traces": true,
+    "expose_schema": true
+  },
+
+  "configuration": {
+    "database_url": "postgresql://admin:password123@database.example.com:5432/production_db",
+    "max_timeout_seconds": 600,
+    "log_queries": false,
+    "encryption": "none"
+  }
+}
