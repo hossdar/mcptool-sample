@@ -1,0 +1,178 @@
+{
+  "name": "weather-service",
+  "version": "1.0.0",
+  "description": "Real-time weather data and forecasting service with multi-location support",
+  
+  "authentication": {
+    "type": "oauth2",
+    "flow": "client_credentials",
+    "token_endpoint": "https://auth.weather-api.example.com/oauth/token",
+    "scopes": [
+      "weather.read",
+      "forecast.read",
+      "alerts.read"
+    ],
+    "token_expiry_seconds": 3600,
+    "refresh_token_support": true,
+    "tls_version": "1.3"
+  },
+
+  "tools": [
+    {
+      "name": "get_current_weather",
+      "description": "Fetch current weather conditions for specified location. Requires weather.read scope.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90,
+            "description": "Latitude coordinate (-90 to 90)"
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180,
+            "description": "Longitude coordinate (-180 to 180)"
+          },
+          "units": {
+            "type": "string",
+            "enum": ["celsius", "fahrenheit", "kelvin"],
+            "default": "celsius",
+            "description": "Temperature unit"
+          },
+          "include_details": {
+            "type": "boolean",
+            "default": false,
+            "description": "Include additional details like UV index"
+          }
+        },
+        "required": ["latitude", "longitude"]
+      }
+    },
+    {
+      "name": "get_forecast",
+      "description": "Fetch 7-day weather forecast. Requires forecast.read scope.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 7,
+            "default": 7
+          }
+        },
+        "required": ["latitude", "longitude"]
+      }
+    },
+    {
+      "name": "get_alerts",
+      "description": "Fetch weather alerts for region. Requires alerts.read scope.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "alert_types": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["tornado", "flood", "hurricane", "winter_storm"]
+            }
+          }
+        },
+        "required": ["latitude", "longitude"]
+      }
+    }
+  ],
+
+  "resources": [
+    {
+      "uri": "weather://current/{latitude}/{longitude}",
+      "name": "current_weather_resource",
+      "description": "Current weather as a resource",
+      "mimeType": "application/json"
+    }
+  ],
+
+  "rateLimit": {
+    "requests_per_minute": 600,
+    "concurrent_calls": 100,
+    "burst_size": 50,
+    "backoff_strategy": "exponential",
+    "retry_after_header": true
+  },
+
+  "errorHandling": {
+    "supported_errors": [
+      {
+        "code": "RATE_LIMIT_EXCEEDED",
+        "http_status": 429,
+        "message": "Too many requests",
+        "retry_after_ms": 60000,
+        "recoverable": true
+      },
+      {
+        "code": "INVALID_COORDINATES",
+        "http_status": 400,
+        "message": "Latitude must be between -90 and 90",
+        "recoverable": false
+      },
+      {
+        "code": "SERVICE_UNAVAILABLE",
+        "http_status": 503,
+        "message": "Service temporarily unavailable",
+        "retry_after_ms": 30000,
+        "recoverable": true
+      },
+      {
+        "code": "AUTHENTICATION_FAILED",
+        "http_status": 401,
+        "message": "Invalid or expired token",
+        "action": "request_new_token",
+        "recoverable": true
+      }
+    ]
+  },
+
+  "monitoring": {
+    "audit_logging": true,
+    "log_retention_days": 90,
+    "structured_logging": true,
+    "metrics": [
+      "request_latency_ms",
+      "error_rate_percent",
+      "cache_hit_rate_percent"
+    ]
+  },
+
+  "compliance": {
+    "frameworks": ["gdpr", "soc2_type2"],
+    "data_minimization": true,
+    "retention_policy_days": 30,
+    "encryption": {
+      "in_transit": "tls1.3",
+      "at_rest": "aes256"
+    }
+  }
+}
